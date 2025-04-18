@@ -2,6 +2,7 @@ import logging
 import os
 import psycopg2
 import urllib3
+import urllib3.contrib.appengine as appengine
 from telegram import (
     Update,
     InlineKeyboardButton,
