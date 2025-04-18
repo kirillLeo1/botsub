@@ -1,11 +1,11 @@
-import os
 import logging
-import psycopg2
+import sqlite3
+import os
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    InputMediaPhoto,
+    InputMediaPhoto
 )
 from telegram.ext import (
     Updater,
@@ -14,53 +14,71 @@ from telegram.ext import (
     MessageHandler,
     Filters,
     ConversationHandler,
-    CallbackContext,
+    CallbackContext
 )
 from telegram.error import TelegramError
 
 # ============================================
-#            Настройки бота и Postgres
+#            Настройки бота и БД
 # ============================================
 
-DATABASE_URL = os.getenv('postgresql://postgres:cvzOXyhRiZIKKICOKNENHsiWvvVeYDQl@postgres.railway.internal:5432/railway')
-if not DATABASE_URL:
-    raise RuntimeError("🚨 Не найдена DATABASE_URL в окружении!")
+# Список администраторов
+ADMIN_IDS = [7060952414]
 
-# Коннект к Postgres (Railway требует sslmode=require)
-conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+# Публичный username группы, в которой бот должен сидеть
+GROUP_USERNAME = '@Rabota_Kiev_hub'  # <- впиши сюда свой @username
+
+# Общая кнопка «Назад»
+INLINE_BACK = InlineKeyboardMarkup(
+    [[InlineKeyboardButton('🔙 Назад', callback_data='back_main')]]
+)
+
+# Состояния для ConversationHandler
+(
+    MAIN_MENU,
+    SELECT_ROLE,
+    NAME_PHONE,
+    EXPERIENCE,
+    SKILLS,
+    ASK_PHOTO,
+    ADD_SUB,
+    REMOVE_SUB,
+    VIEW_CAT,
+    VIEW_NAV,
+    CONFIRM_REMOVE
+) = range(11)
+
+# Подключаемся к базе SQLite и создаём таблицы
+# Подключаемся к базе SQLite в персистентном Volume
+db_path = os.getenv('DB_PATH', 'resumes.db')   # Railway подставит '/data/resumes.db'
+conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
-# Таблицы Postgres-стилем
+
 cursor.execute(
-    '''
-    CREATE TABLE IF NOT EXISTS resumes (
-      id SERIAL PRIMARY KEY,
-      user_id BIGINT,
-      role TEXT,
-      name_phone TEXT,
-      experience TEXT,
-      skills TEXT,
-      photo_file_id TEXT
-    )
-    '''
+    '''CREATE TABLE IF NOT EXISTS resumes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        role TEXT,
+        name_phone TEXT,
+        experience TEXT,
+        skills TEXT,
+        photo_file_id TEXT
+    )'''
 )
 cursor.execute(
-    '''
-    CREATE TABLE IF NOT EXISTS subscribers (
-      user_id BIGINT PRIMARY KEY
-    )
-    '''
+    '''CREATE TABLE IF NOT EXISTS subscribers (
+        user_id INTEGER PRIMARY KEY
+    )'''
 )
 conn.commit()
 
-# Логирование
+# Настройка логирования
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
-# … дальше идёт остальной код без изменений …
-
 
 # ============================================
 #       Константы направлений и функции
@@ -118,7 +136,7 @@ def start(update: Update, context: CallbackContext) -> int:
         member = context.bot.get_chat_member(GROUP_USERNAME, user_id)
         if member.status in ('left', 'kicked'):
             update.message.reply_text(
-                '🚫 Эй, спочатку підпишись на групу, потім запускай!',
+                '🚫 Эй, спочатку підпишись на групу, потім запускай! https://t.me/Rabota_Kiev_hub',
                 reply_markup=INLINE_BACK
             )
             return ConversationHandler.END
