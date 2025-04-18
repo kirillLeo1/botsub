@@ -49,7 +49,7 @@ INLINE_BACK = InlineKeyboardMarkup(
 ) = range(11)
 
 # Подключаемся к базе SQLite и создаём таблицы
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.getenv('postgresql://postgres:cvzOXyhRiZIKKICOKNENHsiWvvVeYDQl@postgres.railway.internal:5432/railway')
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL не задана в окружении!")
 
