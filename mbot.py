@@ -1,12 +1,11 @@
-import logging
 import os
+import logging
 import psycopg2
-from psycopg2.extras import RealDictCursor
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    InputMediaPhoto
+    InputMediaPhoto,
 )
 from telegram.ext import (
     Updater,
@@ -15,72 +14,53 @@ from telegram.ext import (
     MessageHandler,
     Filters,
     ConversationHandler,
-    CallbackContext
+    CallbackContext,
 )
 from telegram.error import TelegramError
 
 # ============================================
-#            Настройки бота и БД
+#            Настройки бота и Postgres
 # ============================================
 
-# Список администраторов
-ADMIN_IDS = [7060952414]
-
-# Публичный username группы, в которой бот должен сидеть
-GROUP_USERNAME = '@Rabota_Kiev_hub'  # <- впиши сюда свой @username
-
-# Общая кнопка «Назад»
-INLINE_BACK = InlineKeyboardMarkup(
-    [[InlineKeyboardButton('🔙 Назад', callback_data='back_main')]]
-)
-
-# Состояния для ConversationHandler
-(
-    MAIN_MENU,
-    SELECT_ROLE,
-    NAME_PHONE,
-    EXPERIENCE,
-    SKILLS,
-    ASK_PHOTO,
-    ADD_SUB,
-    REMOVE_SUB,
-    VIEW_CAT,
-    VIEW_NAV,
-    CONFIRM_REMOVE
-) = range(11)
-
-# Подключаемся к базе SQLite и создаём таблицы
 DATABASE_URL = os.getenv('postgresql://postgres:cvzOXyhRiZIKKICOKNENHsiWvvVeYDQl@postgres.railway.internal:5432/railway')
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL не задана в окружении!")
+    raise RuntimeError("🚨 Не найдена DATABASE_URL в окружении!")
 
+# Коннект к Postgres (Railway требует sslmode=require)
 conn = psycopg2.connect(DATABASE_URL, sslmode='require')
 cursor = conn.cursor()
+
+# Таблицы Postgres-стилем
 cursor.execute(
-    '''CREATE TABLE IF NOT EXISTS resumes (
-        id SERIAL PRIMARY KEY,
-        user_id BIGINT,
-        role TEXT,
-        name_phone TEXT,
-        experience TEXT,
-        skills TEXT,
-        photo_file_id TEXT
-    )'''
+    '''
+    CREATE TABLE IF NOT EXISTS resumes (
+      id SERIAL PRIMARY KEY,
+      user_id BIGINT,
+      role TEXT,
+      name_phone TEXT,
+      experience TEXT,
+      skills TEXT,
+      photo_file_id TEXT
+    )
+    '''
 )
 cursor.execute(
-    '''CREATE TABLE IF NOT EXISTS subscribers (
-        user_id BIGINT PRIMARY KEY
-    )'''
+    '''
+    CREATE TABLE IF NOT EXISTS subscribers (
+      user_id BIGINT PRIMARY KEY
+    )
+    '''
 )
 conn.commit()
 
-
-# Настройка логирования
+# Логирование
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# … дальше идёт остальной код без изменений …
+
 
 # ============================================
 #       Константы направлений и функции
