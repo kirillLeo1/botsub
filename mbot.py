@@ -1,5 +1,6 @@
 import logging
-import sqlite3
+import os
+import psycopg2
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -48,13 +49,16 @@ INLINE_BACK = InlineKeyboardMarkup(
 ) = range(11)
 
 # Подключаемся к базе SQLite и создаём таблицы
-conn = sqlite3.connect('resumes.db', check_same_thread=False)
-cursor = conn.cursor()
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL не задана в окружении!")
 
+conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+cursor = conn.cursor()
 cursor.execute(
     '''CREATE TABLE IF NOT EXISTS resumes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT,
         role TEXT,
         name_phone TEXT,
         experience TEXT,
@@ -64,10 +68,11 @@ cursor.execute(
 )
 cursor.execute(
     '''CREATE TABLE IF NOT EXISTS subscribers (
-        user_id INTEGER PRIMARY KEY
+        user_id BIGINT PRIMARY KEY
     )'''
 )
 conn.commit()
+
 
 # Настройка логирования
 logging.basicConfig(
