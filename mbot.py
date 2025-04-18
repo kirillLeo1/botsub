@@ -1,6 +1,7 @@
 import logging
 import os
 import psycopg2
+import urllib3
 from telegram import (
     Update,
     InlineKeyboardButton,
