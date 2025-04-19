@@ -141,7 +141,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard.append([InlineKeyboardButton('🔙 Скасувати', callback_data='back_main')])
     await update.message.reply_photo(
         photo='https://i.imgur.com/MnFdRwx.png',
-        caption='Виберіть напрямок роботи:',
+        caption='Заповніть резюме для зв\'язку:',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return SELECT_ROLE
@@ -161,6 +161,7 @@ async def select_role(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         text=(
             f"Ви обрали: <b>{ROLE_LABELS[rid]}</b>\n"
             "Введіть імʼя, телефон і @username:\n"
+            "Приклад:\n"
             "Микола Миколайович, +380XXXXXXXXX, @username"
         ),
         parse_mode='HTML'
@@ -384,7 +385,7 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_photo(
         chat_id=chat_id,
         photo='https://i.imgur.com/MnFdRwx.png',
-        caption='Оберіть напрям роботи:',
+        caption='Заповніть резюме для зв\'язку:',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return SELECT_ROLE
