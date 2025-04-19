@@ -1,6 +1,5 @@
 import logging
-import sqlite3
-import os
+import mysql.connector
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -19,21 +18,16 @@ from telegram.ext import (
 from telegram.error import TelegramError
 
 # ============================================
-#            Настройки бота и БД
+#            Налаштування бота і БД
 # ============================================
 
-# Список администраторов
 ADMIN_IDS = [7060952414]
+GROUP_USERNAME = '@Rabota_Kiev_hub'
 
-# Публичный username группы, в которой бот должен сидеть
-GROUP_USERNAME = '@Rabota_Kiev_hub'  # <- впиши сюда свой @username
-
-# Общая кнопка «Назад»
 INLINE_BACK = InlineKeyboardMarkup(
     [[InlineKeyboardButton('🔙 Назад', callback_data='back_main')]]
 )
 
-# Состояния для ConversationHandler
 (
     MAIN_MENU,
     SELECT_ROLE,
@@ -48,61 +42,57 @@ INLINE_BACK = InlineKeyboardMarkup(
     CONFIRM_REMOVE
 ) = range(11)
 
-# Подключаемся к базе SQLite и создаём таблицы
-# Подключаемся к базе SQLite в персистентном Volume
-db_path = os.getenv('DB_PATH', 'resumes.db')   # Railway подставит '/data/resumes.db'
-conn = sqlite3.connect(db_path, check_same_thread=False)
+# Підключення до MySQL
+conn = mysql.connector.connect(
+    host='switchyard.proxy.rlwy.net',
+    port=18288,
+    user='root',
+    password='rWbyTQgrPnRASYtWxDjziJwupnVDdlrz',  # 🔐 заміни на свій пароль
+    database='railway'
+)
 cursor = conn.cursor()
 
-
-cursor.execute(
-    '''CREATE TABLE IF NOT EXISTS resumes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        role TEXT,
-        name_phone TEXT,
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS resumes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT,
+        role VARCHAR(255),
+        name_phone VARCHAR(255),
         experience TEXT,
         skills TEXT,
-        photo_file_id TEXT
-    )'''
-)
-cursor.execute(
-    '''CREATE TABLE IF NOT EXISTS subscribers (
-        user_id INTEGER PRIMARY KEY
-    )'''
-)
+        photo_file_id VARCHAR(255)
+    );
+''')
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS subscribers (
+        user_id BIGINT PRIMARY KEY
+    );
+''')
 conn.commit()
 
-# Настройка логирования
+# Логування
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# ============================================
-#       Константы направлений и функции
-# ============================================
-
-ROLE_IDS = [
-    'prod', 'horeca', 'it', 'office',
-    'realty', 'construct', 'beauty',
-    'logistics', 'freelance'
-]
+# Напрямки
+ROLE_IDS = ['prod', 'horeca', 'it', 'office', 'realty', 'construct', 'beauty', 'logistics', 'freelance']
 ROLE_LABELS = {
-    'prod':      'Продажі, Торгівля, Продавець 💼',
-    'horeca':    'HoReCa (кафе, ресторани) 🍽️',
-    'it':        'ІТ / Технології 💻',
-    'office':    'Офіс-менеджер, Адміністратор, Асистент 🏢',
-    'realty':    'Рієлтор / Нерухомість 🗝️',
+    'prod': 'Продажі, Торгівля, Продавець 💼',
+    'horeca': 'HoReCa (кафе, ресторани) 🍽️',
+    'it': 'ІТ / Технології 💻',
+    'office': 'Офіс-менеджер, Адміністратор, Асистент 🏢',
+    'realty': 'Рієлтор / Нерухомість 🗝️',
     'construct': 'Будівництво / Архітектура-Дизайн 🏡',
-    'beauty':    'Краса / Здоров\'я 💆‍♀️',
+    'beauty': 'Краса / Здоровʼя 💆‍♀️',
     'logistics': 'Логістика / Склад 🚚',
     'freelance': 'Фриланс / Віддалена робота 🌍'
 }
 
 def is_subscriber(user_id: int) -> bool:
-    cursor.execute('SELECT 1 FROM subscribers WHERE user_id=?', (user_id,))
+    cursor.execute('SELECT 1 FROM subscribers WHERE user_id=%s', (user_id,))
     return bool(cursor.fetchone())
 
 def get_main_menu(user_id: int):
@@ -110,7 +100,7 @@ def get_main_menu(user_id: int):
         return InlineKeyboardMarkup([
             [InlineKeyboardButton('📄 Переглянути резюме', callback_data='view_resumes')],
             [InlineKeyboardButton('➕ Додати підписника', callback_data='btn_add_sub')],
-            [InlineKeyboardButton('➖ Видалити підпісника', callback_data='btn_remove_sub')]
+            [InlineKeyboardButton('➖ Видалити підписника', callback_data='btn_remove_sub')]
         ])
     elif is_subscriber(user_id):
         return InlineKeyboardMarkup([
@@ -118,47 +108,37 @@ def get_main_menu(user_id: int):
         ])
     return None
 
-# ============================================
-#            Команды бота
-# ============================================
+# === Команди ===
 
 def start(update: Update, context: CallbackContext) -> int:
     user_id = update.effective_user.id
 
     if not GROUP_USERNAME.startswith('@'):
-        update.message.reply_text(
-            '❗️ Не указан @username группы в константе GROUP_USERNAME!'
-        )
+        update.message.reply_text('❗️ Не вказано @username групи в GROUP_USERNAME!')
         return ConversationHandler.END
 
-    # Проверяем, является ли пользователь участником группы
     try:
         member = context.bot.get_chat_member(GROUP_USERNAME, user_id)
         if member.status in ('left', 'kicked'):
             update.message.reply_text(
-                '🚫 Эй, спочатку підпишись на групу, потім запускай! https://t.me/Rabota_Kiev_hub',
+                '🚫 Спочатку підпишись на групу, потім запускай! https://t.me/Rabota_Kiev_hub',
                 reply_markup=INLINE_BACK
             )
             return ConversationHandler.END
     except TelegramError as e:
-        logger.warning(f'Ошибка проверки подписки: {e}')
+        logger.warning(f'Помилка перевірки підписки: {e}')
         update.message.reply_text(
-            '⚠️ Не можу переввірити підписку, бот не в групі, або немає прав.',
+            '⚠️ Не можу перевірити підписку. Бот не в групі або не має прав.',
             reply_markup=INLINE_BACK
         )
         return ConversationHandler.END
 
-    # Если админ или подписчик – показываем главное меню
     menu = get_main_menu(user_id)
     if menu:
         update.message.reply_text('Головне меню:', reply_markup=menu)
         return MAIN_MENU
 
-    # Иначе – собираем резюме у обычного пользователя
-    keyboard = [
-        [InlineKeyboardButton(ROLE_LABELS[rid], callback_data=f'role_{rid}')]
-        for rid in ROLE_IDS
-    ]
+    keyboard = [[InlineKeyboardButton(ROLE_LABELS[rid], callback_data=f'role_{rid}')] for rid in ROLE_IDS]
     keyboard.append([InlineKeyboardButton('🔙 Скасувати', callback_data='back_main')])
     update.message.reply_photo(
         photo='https://i.imgur.com/MnFdRwx.png',
@@ -167,26 +147,20 @@ def start(update: Update, context: CallbackContext) -> int:
     )
     return SELECT_ROLE
 
-# ============================================
-#       Обработчики ConversationHandler
-# ============================================
-
 def select_role(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     query.answer()
     rid = query.data.replace('role_', '')
     if rid not in ROLE_LABELS:
-        return query.edit_message_text(
-            '❌ Невірний напрямок.',
-            reply_markup=INLINE_BACK
-        )
+        return query.edit_message_text('❌ Невірний напрямок.', reply_markup=INLINE_BACK)
+
     context.user_data['role'] = ROLE_LABELS[rid]
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=(
             f"Ви обрали: <b>{ROLE_LABELS[rid]}</b>\n"
-            "Введіть ім'я, телефон і @username:\n"
-            "Микола Миколович, +380XXXXXXXXX, @username"
+            "Введіть імʼя, телефон і @username:\n"
+            "Микола Миколайович, +380XXXXXXXXX, @username"
         ),
         parse_mode='HTML'
     )
@@ -195,15 +169,15 @@ def select_role(update: Update, context: CallbackContext) -> int:
 def name_phone(update: Update, context: CallbackContext) -> int:
     context.user_data['name_phone'] = update.message.text
     update.message.reply_text(
-        '📋 Введіть досвід роботи або курси:',
+        '📋 Введіть досвід роботи або пройдені курси:',
         reply_markup=INLINE_BACK
     )
     return EXPERIENCE
-
+ 
 def experience(update: Update, context: CallbackContext) -> int:
     context.user_data['experience'] = update.message.text
     update.message.reply_text(
-        '💡 Введіть ключові навички (3-5 пунктов), розділяючи комами:',
+        '💡 Введіть ключові навички (3-5 пунктів), розділяючи комами:',
         reply_markup=INLINE_BACK
     )
     return SKILLS
@@ -220,8 +194,9 @@ def photo_handler(update: Update, context: CallbackContext) -> int:
     photo = update.message.photo[-1]
     file_id = photo.file_id
     data = context.user_data
+
     cursor.execute(
-        'INSERT INTO resumes (user_id, role, name_phone, experience, skills, photo_file_id) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO resumes (user_id, role, name_phone, experience, skills, photo_file_id) VALUES (%s, %s, %s, %s, %s, %s)',
         (
             update.effective_user.id,
             data['role'],
@@ -232,8 +207,9 @@ def photo_handler(update: Update, context: CallbackContext) -> int:
         )
     )
     conn.commit()
+
     update.message.reply_text(
-        '✅ Дякую, ваше резюме відправленно на розгляд роботодавцю.',
+        '✅ Дякую, ваше резюме надіслано на розгляд.',
         reply_markup=get_main_menu(update.effective_user.id)
     )
     return MAIN_MENU
@@ -247,7 +223,7 @@ def view_resumes_start(update: Update, context: CallbackContext) -> int:
     ]
     buttons.append([InlineKeyboardButton('🔙 Назад', callback_data='back_main')])
     query.edit_message_text(
-        'Оберіть розділ:',
+        'Оберіть категорію резюме:',
         reply_markup=InlineKeyboardMarkup(buttons)
     )
     return VIEW_CAT
@@ -257,17 +233,19 @@ def handle_view_direction(update: Update, context: CallbackContext) -> int:
     query.answer()
     rid = query.data.replace('view_', '')
     category = ROLE_LABELS.get(rid)
+
     cursor.execute(
-        'SELECT name_phone, experience, skills, photo_file_id FROM resumes WHERE role=? ORDER BY id',
+        'SELECT name_phone, experience, skills, photo_file_id FROM resumes WHERE role=%s ORDER BY id',
         (category,)
     )
     rows = cursor.fetchall()
     if not rows:
         query.edit_message_text(
-            '📂 Немає резюме у цьому розділі.',
+            '📂 У цьому розділі ще немає резюме.',
             reply_markup=get_main_menu(query.from_user.id)
         )
         return MAIN_MENU
+
     context.user_data['view_list'] = rows
     context.user_data['view_index'] = 0
     return view_nav(update, context)
@@ -277,15 +255,16 @@ def view_nav(update: Update, context: CallbackContext) -> int:
     query.answer()
     rows = context.user_data['view_list']
     idx = context.user_data['view_index']
-    idx = max(0, min(idx, len(rows)-1))
+    idx = max(0, min(idx, len(rows) - 1))
     context.user_data['view_index'] = idx
 
     name, exp, skills, photo_id = rows[idx]
-    caption = f"Резюме ({idx+1}/{len(rows)}):\n{name}\nДосвід: {exp}\nНавички: {skills}"
+    caption = f"Резюме ({idx + 1}/{len(rows)}):\n{name}\nДосвід: {exp}\nНавички: {skills}"
+
     nav_buttons = []
     if idx > 0:
         nav_buttons.append(InlineKeyboardButton('← Попереднє', callback_data='prev_resume'))
-    if idx < len(rows)-1:
+    if idx < len(rows) - 1:
         nav_buttons.append(InlineKeyboardButton('Наступне →', callback_data='next_resume'))
     nav_buttons.append(InlineKeyboardButton('🔙 Назад', callback_data='back_main'))
 
@@ -316,10 +295,10 @@ def add_subscriber_save(update: Update, context: CallbackContext) -> int:
     text = update.message.text.strip()
     try:
         uid = int(text)
-        cursor.execute('INSERT OR IGNORE INTO subscribers(user_id) VALUES (?)', (uid,))
+        cursor.execute('INSERT IGNORE INTO subscribers(user_id) VALUES (%s)', (uid,))
         conn.commit()
         update.message.reply_text(
-            f'✅ Користувач {uid} додан.',
+            f'✅ Користувач {uid} доданий.',
             reply_markup=get_main_menu(update.effective_user.id)
         )
     except ValueError:
@@ -332,7 +311,8 @@ def add_subscriber_save(update: Update, context: CallbackContext) -> int:
 def remove_subscriber_start(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     query.answer()
-    subs = cursor.execute('SELECT user_id FROM subscribers').fetchall()
+    cursor.execute('SELECT user_id FROM subscribers')
+    subs = cursor.fetchall()
     if not subs:
         query.edit_message_text(
             'Список підписників порожній.',
@@ -366,7 +346,7 @@ def confirm_remove(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     query.answer()
     uid = context.user_data.get('remove_uid')
-    cursor.execute('DELETE FROM subscribers WHERE user_id=?', (uid,))
+    cursor.execute('DELETE FROM subscribers WHERE user_id=%s', (uid,))
     conn.commit()
     query.edit_message_text(
         f'✅ Користувач {uid} вилучений.',
@@ -387,10 +367,7 @@ def back_main(update: Update, context: CallbackContext) -> int:
     if menu:
         context.bot.send_message(chat_id=chat_id, text='Головне меню:', reply_markup=menu)
         return MAIN_MENU
-    keyboard = [
-        [InlineKeyboardButton(ROLE_LABELS[rid], callback_data=f'role_{rid}')]
-        for rid in ROLE_IDS
-    ]
+    keyboard = [[InlineKeyboardButton(ROLE_LABELS[rid], callback_data=f'role_{rid}')] for rid in ROLE_IDS]
     keyboard.append([InlineKeyboardButton('🔙 Скасувати', callback_data='back_main')])
     context.bot.send_photo(
         chat_id=chat_id,
@@ -400,12 +377,9 @@ def back_main(update: Update, context: CallbackContext) -> int:
     )
     return SELECT_ROLE
 
-# ============================================
-#                 Точка входа
-# ============================================
-
+# 🚀 Головна точка входу
 def main():
-    updater = Updater('7485109824:AAGj7HXh1QT3G-fo5qWEOMesaBYydtw7oD4')
+    updater = Updater('7485109824:AAGj7HXh1QT3G-fo5qWEOMesaBYydtw7oD4')  # 🔐 встав свій токен
     dp = updater.dispatcher
 
     conv = ConversationHandler(
