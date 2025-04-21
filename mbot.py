@@ -80,10 +80,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-ROLE_IDS = ['prod', 'horeca', 'it', 'office', 'realty', 'construct', 'beauty', 'logistics', 'freelance']
+ROLE_IDS = [
+    'prod',      # 1. Продажі
+    'horeca',    # 2. HoReCa
+    'smm',       # 3. Маркетолог / SMM  ← вот оно!
+    'it',        # 4. ІТ / Технології
+    'office',
+    'realty',
+    'construct',
+    'beauty',
+    'logistics',
+    'freelance'
+]
 ROLE_LABELS = {
     'prod': 'Продажі, Торгівля, Продавець 💼',
     'horeca': 'HoReCa (кафе, ресторани) 🍽️',
+    'smm': '📲 Маркетолог / SMM',
     'it': 'ІТ / Технології 💻',
     'office': 'Офіс-менеджер, Адміністратор, Асистент 🏢',
     'realty': 'Рієлтор / Нерухомість 🗝️',
