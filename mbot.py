@@ -400,7 +400,6 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # === MAIN ===
 
 def main():
-    application = Application.builder().token("7485109824:AAGj7HXh1QT3G-fo5qWEOMesaBYydtw7oD4").build()
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
