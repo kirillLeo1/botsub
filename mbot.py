@@ -43,13 +43,14 @@ INLINE_BACK = InlineKeyboardMarkup(
     CONFIRM_REMOVE
 ) = range(11)
 
-# Підключення до MySQL
+load_dotenv()                       
 conn = mysql.connector.connect(
-    host=os.environ.get("MYSQLHOST", "switchyard.proxy.rlwy.net"),
-    port = int(os.environ.get("MYSQLPORT", 18288)),
-    user=os.environ.get("MYSQLUSER", "root"),
-    password=os.environ.get("MYSQLPASSWORD", "rWbyTQgrPnRASYtWxDjziJwupnVDdlrz"),
-    database=os.environ.get("MYSQLDATABASE", "railway")
+    host=os.environ["MYSQLHOST"],
+    port=int(os.environ["MYSQLPORT"]),
+    user=os.environ["MYSQLUSER"],
+    password=os.environ["MYSQLPASSWORD"],
+    database=os.environ["MYSQLDATABASE"],
+    ssl_disabled=False                
 )
 cursor = conn.cursor()
 
