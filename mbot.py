@@ -2,7 +2,6 @@ import logging
 import mysql.connector
 import os
 from dotenv import load_dotenv
-from urllib.parse import urlparse
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -44,16 +43,12 @@ INLINE_BACK = InlineKeyboardMarkup(
     CONFIRM_REMOVE
 ) = range(11)
 
-url = os.environ["DB_URL"]
-parsed = urlparse(url)
-
 conn = mysql.connector.connect(
-    host     = parsed.hostname,
-    port     = parsed.port,
-    user     = parsed.username,
-    password = parsed.password,
-    database = parsed.path.lstrip("/"),
-    ssl_disabled=False
+    host=os.environ.get("MYSQLHOST", "mysql.railway.internal"),
+    port = int(os.environ.get("MYSQLPORT", 3306)),
+    user=os.environ.get("MYSQLUSER", "root"),
+    password=os.environ.get("MYSQLPASSWORD", "ZdhLyxyotbfUvPqWerrDLMkHueYtKCpV"),
+    database=os.environ.get("MYSQLDATABASE", "railway")
 )
 cursor = conn.cursor()
 
