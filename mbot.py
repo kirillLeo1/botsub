@@ -21,13 +21,7 @@ from telegram.ext import (
 # ============================================
 #            Налаштування бота і БД
 # ============================================
-load_dotenv()
-def main():
-    application = (
-        Application.builder()
-        .token(os.getenv("BOT_TOKEN")) 
-        .build()
-    )
+
 ADMIN_IDS = [7060952414]
 GROUP_USERNAME = '@Rabota_Kiev_hub'
 
@@ -398,9 +392,13 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 # === MAIN ===
-
+load_dotenv()
 def main():
-
+    application = (
+        Application.builder()
+        .token(os.getenv("BOT_TOKEN")) 
+        .build()
+    )
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
