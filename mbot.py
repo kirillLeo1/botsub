@@ -51,7 +51,7 @@ conn = mysql.connector.connect(
     user=os.environ["MYSQLUSER"],
     password=os.environ["MYSQLPASSWORD"],
     database=os.environ["MYSQLDATABASE"],
-    ssl_disabled=False                
+    ssl_disabled=True               
 )
 cursor = conn.cursor()
 
