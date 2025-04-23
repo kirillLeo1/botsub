@@ -43,7 +43,7 @@ INLINE_BACK = InlineKeyboardMarkup(
     CONFIRM_REMOVE
 ) = range(11)
 
-load_dotenv()                        
+load_dotenv()
 
 conn = mysql.connector.connect(
     host=os.environ["MYSQLHOST"],
@@ -51,12 +51,25 @@ conn = mysql.connector.connect(
     user=os.environ["MYSQLUSER"],
     password=os.environ["MYSQLPASSWORD"],
     database=os.environ["MYSQLDATABASE"],
-    ssl_disabled=True, 
-    reconnect=True
+    ssl_disabled=True
 )
 
+def ensure_connection():
+    global conn
+    try:
+        if not conn.is_connected():
+            conn.reconnect()
+    except:
+        conn = mysql.connector.connect(
+            host=os.environ["MYSQLHOST"],
+            port=int(os.environ["MYSQLPORT"]),
+            user=os.environ["MYSQLUSER"],
+            password=os.environ["MYSQLPASSWORD"],
+            database=os.environ["MYSQLDATABASE"],
+            ssl_disabled=True
+        )
+ensure_connection()
 cursor = conn.cursor()
-
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS resumes (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -109,6 +122,8 @@ ROLE_LABELS = {
 
 
 def is_subscriber(user_id: int) -> bool:
+    ensure_connection()
+    cursor = conn.cursor()
     cursor.execute('SELECT 1 FROM subscribers WHERE user_id=%s', (user_id,))
     return bool(cursor.fetchone())
 
@@ -216,7 +231,8 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     photo = update.message.photo[-1]
     file_id = photo.file_id
     data = context.user_data
-
+    ensure_connection()
+    cursor = conn.cursor()
     cursor.execute(
         'INSERT INTO resumes (user_id, role, name_phone, experience, skills, photo_file_id) VALUES (%s, %s, %s, %s, %s, %s)',
         (
@@ -253,7 +269,8 @@ async def handle_view_direction(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     rid = query.data.replace('view_', '')
     category = ROLE_LABELS.get(rid)
-
+    ensure_connection()
+    cursor = conn.cursor()
     cursor.execute(
         'SELECT name_phone, experience, skills, photo_file_id FROM resumes WHERE role=%s ORDER BY id',
         (category,)
@@ -320,6 +337,8 @@ async def add_subscriber_save(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = update.message.text.strip()
     try:
         uid = int(text)
+        ensure_connection()
+        cursor = conn.cursor()
         cursor.execute('INSERT IGNORE INTO subscribers(user_id) VALUES (%s)', (uid,))
         conn.commit()
         await update.message.reply_text(
@@ -337,6 +356,8 @@ async def add_subscriber_save(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def remove_subscriber_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    ensure_connection()
+    cursor = conn.cursor()
     cursor.execute('SELECT user_id FROM subscribers')
     subs = cursor.fetchall()
     if not subs:
@@ -374,6 +395,8 @@ async def confirm_remove(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     query = update.callback_query
     await query.answer()
     uid = context.user_data.get('remove_uid')
+    ensure_connection()
+    cursor = conn.cursor()
     cursor.execute('DELETE FROM subscribers WHERE user_id=%s', (uid,))
     conn.commit()
     await query.edit_message_text(
