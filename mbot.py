@@ -55,7 +55,6 @@ conn = mysql.connector.connect(
     reconnect=True
 )
 
-)
 cursor = conn.cursor()
 
 cursor.execute('''
